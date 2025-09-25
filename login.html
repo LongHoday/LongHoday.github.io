@@ -37,34 +37,81 @@
 </nav>
 
     <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  const btnAccount = document.getElementById("btnAccount");
-  const userPanel = document.getElementById("userPanel");
-  const userName = document.getElementById("userName");
-  const btnLogout = document.getElementById("btnLogout");
+<script>
+// Config chung (chỉ cần sửa 1 chỗ khi đổi môi trường)
+const API_BASE_URL = "https://api.techmall.me"; 
+// Khi dev local thì sửa thành: "http://localhost/ecommercee/index.php"
 
-  if (user && user.full_name) {
-    // Ẩn nút đăng nhập
-    if (btnAccount) btnAccount.style.display = "none";
+// --- Inactivity Timer ---
+let inactivityTimer;
+function startInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    alert("Bạn đã dừng quá lâu (hơn 1 phút). Vui lòng nhập lại để đăng nhập.");
+  }, 60000);
+}
 
-    // Hiện panel user
-    if (userName) userName.textContent = user.full_name;
-    if (userPanel) userPanel.style.display = "inline-block";
-  } else {
-    // Nếu không có user -> hiển thị nút đăng nhập
-    if (btnAccount) btnAccount.style.display = "inline-block";
-    if (userPanel) userPanel.style.display = "none";
-  }
+// Reset timer mỗi khi người dùng gõ
+document.getElementById("email").addEventListener("input", startInactivityTimer);
+document.getElementById("password").addEventListener("input", startInactivityTimer);
 
-  // Đăng xuất
-  if (btnLogout) {
-    btnLogout.addEventListener("click", () => {
-      localStorage.clear();
-      window.location.href = "login.html";
+// Bắt đầu đếm khi trang load
+startInactivityTimer();
+
+document.getElementById("loginForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const url = ${API_BASE_URL}/api/login;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ email, password })
     });
+
+    const raw = await res.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      console.error("Server không trả về JSON:", raw);
+      alert("Lỗi server: dữ liệu không hợp lệ.");
+      return;
+    }
+
+    if (res.ok && data.success && data.data?.token) {
+      // Lưu token
+      localStorage.setItem("token", data.data.token);
+
+      // Lưu user
+      if (data.data.user) {
+        localStorage.setItem("user", JSON.stringify(data.data.user));
+        localStorage.setItem("user_id", data.data.user.id);
+      }
+
+      alert(data.message || "Đăng nhập thành công!");
+      window.location.href = "index.html";
+    } else {
+      if (res.status === 403 && data.message?.toLowerCase().includes("locked")) {
+        alert(data.message);
+      } else {
+        alert(data.message || Lỗi server (${res.status}));
+      }
+    }
+  } catch (err) {
+    console.error("Fetch exception:", err);
+    alert("Không thể kết nối tới server!");
+  } finally {
+    startInactivityTimer();
   }
 });
+</script>
 </script>
 
      
@@ -220,3 +267,4 @@ document.getElementById("loginForm").addEventListener("submit", async function (
     
 </body>
 </html>
+
